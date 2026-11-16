@@ -21,3 +21,4 @@ android/local.properties
 android/assets/
 android/build/
 android/hongjuan.keystore
+*.idsig
