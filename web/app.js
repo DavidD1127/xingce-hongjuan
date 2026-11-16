@@ -12,7 +12,19 @@ const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&am
 // 题干里的 **加粗** 转成标签，其余 HTML 原样保留
 const rich = s => String(s || '').replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>');
 
+// 装进 APK 时没有 HTTP 服务，改走同一套接口的本地桥；浏览器里还是走 /api/
+function bridge() {
+  return (typeof window !== 'undefined' && window.HJNative) ? window.HJNative : null;
+}
+
 async function api(path, body) {
+  const b = bridge();
+  if (b) {
+    const raw = b.call(path, body === undefined ? '' : JSON.stringify(body));
+    const data = JSON.parse(raw || '{}');
+    if (data && data.__error) throw new Error(data.__error);
+    return data;
+  }
   const opt = body === undefined ? undefined : {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

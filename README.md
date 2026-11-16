@@ -35,10 +35,28 @@ python server.py      # 起服务，默认 8400
 build_db.py    题库 Markdown → hongjuan.db
 server.py      后端，标准库，无依赖
 web/           前端三个文件，原生 JS
+android/       安卓壳工程（WebView + 本地 SQLite）
+build_apk.py   打包 APK
 hongjuan.db    题库 + 进度（约 85MB，跑 build_db.py 生成）
 ```
 
 `hongjuan.db` 是全部数据。备份就是拷这一个文件。删了重跑 `build_db.py` 也没事，就是进度清空。
+
+## 手机版（APK）
+
+```
+python build_apk.py
+```
+
+跑完根目录多一个 `行测红卷.apk`（约 113MB）。装到手机上就是离线版：题库、配图全在包里，做题记录存本机，不联网。
+
+首次打开会把题库从安装包解到应用目录，等几秒就好。之后启动是秒开。
+
+竖屏锁定，导航在屏幕底部，按钮都按拇指大小做的。
+
+构建需要三样东西：JDK 17、Android SDK（build-tools 34 + platform android-34）、Pillow。三样都到位才能出包，缺一样会直接报错退出。
+
+和桌面版的关系：两边数据不互通。桌面版改动做在 `web/`，APK 用的就是同一套页面，只是把 `fetch('/api/…')` 换成 `HJNative.call(…)` 走本地库。
 
 ## 改哪里
 

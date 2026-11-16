@@ -16,3 +16,8 @@ android/local.properties
 *.apk
 *.aab
 *.keystore
+
+# 安卓构建产物：assets 里是复制过去的题库与图片（可由 build_apk.py 重新生成）
+android/assets/
+android/build/
+android/hongjuan.keystore
