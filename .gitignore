@@ -1,0 +1,18 @@
+# 题库可从上游重建，不进版本库（约 85MB）
+hongjuan.db
+hongjuan.db-wal
+hongjuan.db-shm
+
+# Python
+__pycache__/
+*.py[cod]
+
+# 构建与测试临时文件
+.tmp*
+android/app/build/
+android/build/
+android/.gradle/
+android/local.properties
+*.apk
+*.aab
+*.keystore

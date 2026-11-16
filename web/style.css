@@ -1,0 +1,222 @@
+:root{
+  --red:#b0161c;
+  --red-deep:#7c0e13;
+  --red-pale:#f6e7e6;
+  --paper:#f4efe5;
+  --white:#fffdf9;
+  --ink:#1d1b18;
+  --ink-2:#5d574e;
+  --line:#ddd3c2;
+  --line-2:#c9bca6;
+  --green:#1f6b3a;
+}
+
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  background:var(--paper);
+  color:var(--ink);
+  font:16px/1.75 "PingFang SC","Microsoft YaHei","Hiragino Sans GB",sans-serif;
+  -webkit-font-smoothing:antialiased;
+}
+a{color:var(--red);text-decoration:none}
+h1,h2,h3{font-family:"Noto Serif SC","Source Han Serif SC","Songti SC",SimSun,serif;font-weight:700}
+img{max-width:100%;height:auto;vertical-align:middle}
+
+/* ---------- 顶栏 ---------- */
+#top{background:var(--white);border-bottom:1px solid var(--line)}
+.band{
+  background:var(--red);
+  color:#fff;
+  display:flex;align-items:center;gap:14px;
+  padding:14px 22px 13px;
+  position:relative;
+}
+.band::after{content:"";position:absolute;left:0;right:0;bottom:0;height:3px;background:var(--red-deep)}
+.star{
+  width:30px;height:30px;flex:none;background:#fff;
+  clip-path:polygon(50% 0,61% 35%,98% 35%,68% 57%,79% 91%,50% 70%,21% 91%,32% 57%,2% 35%,39% 35%);
+}
+.band h1{margin:0;font-size:26px;letter-spacing:6px;font-weight:700}
+.motto{margin:0 0 0 auto;font-size:12.5px;letter-spacing:2px;opacity:.9;font-family:"Songti SC",SimSun,serif}
+
+#tabs{display:flex;gap:0;padding:0 14px;overflow-x:auto}
+#tabs a{
+  padding:11px 16px 9px;font-size:15px;color:var(--ink-2);
+  border-bottom:3px solid transparent;white-space:nowrap;
+}
+#tabs a:hover{color:var(--red)}
+#tabs a.on{color:var(--red);border-color:var(--red);font-weight:600}
+
+/* ---------- 版心 ---------- */
+main{max-width:880px;margin:0 auto;padding:26px 18px 80px}
+.sheet{
+  background:var(--white);border:1px solid var(--line);
+  border-left:4px solid var(--red);
+  padding:24px 26px;
+  margin-bottom:18px;
+}
+.sheet h2{margin:0 0 4px;font-size:20px;letter-spacing:1px}
+.kicker{display:inline-block;background:var(--red);color:#fff;font-size:12px;
+  letter-spacing:4px;padding:3px 12px 2px;margin-bottom:10px;font-family:"Songti SC",SimSun,serif}
+.sub{color:var(--ink-2);font-size:13px}
+.rule{height:1px;background:var(--line);margin:16px 0}
+.rule.dashed{background:none;border-top:1px dashed var(--line-2)}
+
+/* ---------- 首页 ---------- */
+.headline{display:flex;align-items:flex-end;gap:16px;margin-bottom:6px}
+.headline b{font-family:"Songti SC",SimSun,serif;font-size:46px;line-height:1;color:var(--red);letter-spacing:0}
+.headline span{font-size:14px;color:var(--ink-2);padding-bottom:6px}
+
+.cells{display:grid;grid-template-columns:repeat(4,1fr);border:1px solid var(--line);margin:18px 0 4px}
+.cells div{padding:14px 8px;text-align:center;border-right:1px solid var(--line)}
+.cells div:last-child{border-right:0}
+.cells b{display:block;font-family:"Songti SC",SimSun,serif;font-size:30px;line-height:1.1}
+.cells span{font-size:12.5px;color:var(--ink-2)}
+.cells .hot b{color:var(--red)}
+
+.acts{display:flex;gap:10px;flex-wrap:wrap;margin-top:20px}
+.setup-sel{font:inherit;font-size:14.5px;padding:7px 10px;border:1px solid var(--line-2);
+  background:var(--white);color:var(--ink);min-width:190px;max-width:100%}
+.setup-sel:focus{outline:2px solid var(--red-pale);outline-offset:0;border-color:var(--red)}
+
+.btn{
+  display:inline-block;padding:10px 24px;border:1px solid var(--red);
+  background:var(--red);color:#fff;font-size:15px;letter-spacing:1px;
+  cursor:pointer;font-family:inherit;
+}
+.btn:hover{background:var(--red-deep);border-color:var(--red-deep)}
+.btn.ghost{background:transparent;color:var(--red)}
+.btn.ghost:hover{background:var(--red-pale)}
+.btn.ghost.on{background:var(--red-pale);font-weight:600}
+.btn:disabled{opacity:.45;cursor:default}
+.btn.sm{padding:6px 14px;font-size:13.5px}
+
+.mod-list{margin-top:8px}
+.mod-row{display:grid;grid-template-columns:110px 1fr 74px;gap:12px;align-items:center;padding:7px 0}
+.mod-row .nm{font-size:14px}
+.mod-row .bar{height:13px;background:#e9e0d0;border:1px solid var(--line-2);position:relative}
+.mod-row .bar i{
+  display:block;height:100%;background:var(--red);
+  background-image:repeating-linear-gradient(90deg,transparent 0 10px,rgba(255,255,255,.85) 10px 11px);
+}
+.mod-row .num{font-size:12.5px;color:var(--ink-2);text-align:right;font-variant-numeric:tabular-nums}
+
+/* ---------- 答题 ---------- */
+.qhead{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+.qno{font-family:"Songti SC",SimSun,serif;font-size:18px;color:var(--red);letter-spacing:1px}
+.tags{display:flex;gap:6px;flex-wrap:wrap;font-size:12px;color:var(--ink-2)}
+.tags i{font-style:normal;border:1px solid var(--line-2);padding:1px 7px}
+
+/* 长材料会吃掉整屏，限高滚动，题干始终留在视野里 */
+.mat{border-left:3px solid var(--red);background:#faf6ee;padding:10px 16px 12px;
+  margin:14px 0;font-size:14.5px;line-height:1.85;max-height:38vh;overflow-y:auto}
+.mat .mh{font-size:12.5px;color:var(--ink-2);letter-spacing:1px;margin-bottom:6px;position:sticky;top:0;background:#faf6ee}
+.mat::-webkit-scrollbar{width:8px}
+.mat::-webkit-scrollbar-thumb{background:var(--line-2)}
+.mat::-webkit-scrollbar-track{background:#efe7d8}
+.mat .mh{font-size:12.5px;color:var(--ink-2);letter-spacing:1px;margin-bottom:6px}
+.stem{font-size:16.5px;line-height:1.95;margin:14px 0 18px}
+.stem p{margin:.5em 0}
+
+.opts{display:flex;flex-direction:column;gap:9px}
+.opt{
+  display:flex;gap:12px;align-items:flex-start;text-align:left;
+  border:1px solid var(--line-2);background:var(--white);
+  padding:11px 14px;cursor:pointer;font:inherit;font-size:15.5px;line-height:1.7;color:inherit;
+}
+.opt:hover{background:#fbf4e9;border-color:var(--red)}
+.opt .k{
+  flex:none;width:24px;height:24px;line-height:24px;text-align:center;
+  border:1px solid var(--red);color:var(--red);font-size:13.5px;font-family:"Songti SC",SimSun,serif;
+}
+.opt.sel{border-color:var(--red);background:var(--red-pale)}
+.opt.sel .k{background:var(--red);color:#fff}
+.opt.right{border-color:var(--green);background:#eef6f0}
+.opt.right .k{background:var(--green);border-color:var(--green);color:#fff}
+.opt.wrong{border-color:var(--red);background:var(--red-pale)}
+.opt.wrong .k{background:var(--red);border-color:var(--red);color:#fff}
+.opt p{margin:0}
+
+.verdict{display:flex;align-items:center;gap:12px;margin:18px 0 0;font-size:15px}
+.stamp{
+  border:2px solid currentColor;padding:2px 10px;font-family:"Songti SC",SimSun,serif;
+  letter-spacing:2px;font-size:15px;transform:rotate(-2deg);
+}
+.ok{color:var(--green)}
+.no{color:var(--red)}
+
+.ana{margin-top:16px;border-top:1px solid var(--line);padding-top:14px;font-size:15px;line-height:1.9}
+.ana .ah{font-size:12.5px;letter-spacing:2px;color:var(--red);margin-bottom:6px}
+.ana p{margin:.5em 0}
+
+.grade{margin-top:20px;border-top:1px solid var(--line);padding-top:16px}
+.grade > p{margin:0 0 10px;font-size:13.5px;color:var(--ink-2)}
+.grade-btns{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.grade-btns button{
+  padding:11px 4px;border:1px solid var(--line-2);background:var(--white);cursor:pointer;
+  font:inherit;font-size:14.5px;color:var(--ink)
+}
+.grade-btns button:hover{border-color:var(--red);color:var(--red);background:var(--red-pale)}
+.grade-btns small{display:block;font-size:11.5px;color:var(--ink-2);margin-top:2px}
+
+.bar-top{position:fixed;left:0;top:0;height:3px;background:var(--red);z-index:9;transition:width .2s}
+body::before{content:"";position:fixed;left:0;right:0;top:0;height:3px;background:#e2d7c4;z-index:8}
+
+.tools{display:flex;gap:8px;margin-top:18px;flex-wrap:wrap}
+.tools button,.tools label{
+  border:1px solid var(--line-2);background:var(--white);padding:6px 12px;cursor:pointer;
+  font:inherit;font-size:13px;color:var(--ink-2)
+}
+.tools button:hover{border-color:var(--red);color:var(--red)}
+.tools button.on{border-color:var(--red);color:var(--red);background:var(--red-pale)}
+.tools #reset{color:var(--red);border-color:var(--red)}
+.keys{margin:12px 0 0;font-size:12px;letter-spacing:1px;color:#9a917f}
+
+/* ---------- 列表 / 浏览 ---------- */
+.filters{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:14px}
+.filters select,.filters input{
+  font:inherit;font-size:13.5px;padding:6px 8px;border:1px solid var(--line-2);
+  background:var(--white);color:var(--ink);min-width:0;
+}
+.filters input[type=search]{flex:1;min-width:140px}
+
+.row{
+  display:block;border-bottom:1px dashed var(--line);
+  padding:11px 2px;color:inherit;cursor:pointer;background:none;width:100%;text-align:left;font:inherit
+}
+.row:hover{background:#fbf4e9}
+.row .t{font-size:14.5px;line-height:1.6}
+.row .m{font-size:12px;color:var(--ink-2);margin-top:3px}
+.row .m i{font-style:normal;margin-right:10px}
+.flag{font-size:11.5px;color:var(--red);border:1px solid var(--red);padding:0 4px;margin-left:6px}
+
+.pager{display:flex;gap:10px;align-items:center;justify-content:center;margin-top:18px;font-size:13.5px;color:var(--ink-2)}
+
+/* ---------- 统计 ---------- */
+.chart{display:flex;align-items:flex-end;gap:3px;height:112px;margin:10px 0 0;
+  border-bottom:1px solid var(--line-2);padding-bottom:0}
+.chart i{flex:1;background:var(--red);opacity:.9;min-height:2px}
+.chart i[data-z="1"]{background:#ddd0bb;opacity:1}
+.axis{display:flex;justify-content:space-between;font-size:11.5px;color:var(--ink-2);margin:5px 0 0}
+.tbl{width:100%;border-collapse:collapse;font-size:14px}
+.tbl th,.tbl td{text-align:left;padding:7px 6px;border-bottom:1px solid var(--line)}
+.tbl th{font-weight:600;color:var(--ink-2);font-size:12.5px;letter-spacing:1px}
+.tbl td.num{text-align:right;font-variant-numeric:tabular-nums}
+
+.empty{padding:40px 0;text-align:center;color:var(--ink-2);font-size:14px}
+.loading{padding:60px 0;text-align:center;color:var(--ink-2);font-size:14px;letter-spacing:2px}
+.err{border-left:4px solid var(--red);background:var(--red-pale);padding:14px 18px;font-size:14px}
+
+@media (max-width:640px){
+  main{padding:18px 12px 70px}
+  .sheet{padding:18px 16px}
+  .band h1{font-size:21px;letter-spacing:4px}
+  .motto{display:none}
+  .headline b{font-size:38px}
+  .cells{grid-template-columns:repeat(2,1fr)}
+  .cells div:nth-child(2){border-right:0}
+  .cells div:nth-child(-n+2){border-bottom:1px solid var(--line)}
+  .grade-btns{grid-template-columns:repeat(2,1fr)}
+  .mod-row{grid-template-columns:84px 1fr 60px}
+}
