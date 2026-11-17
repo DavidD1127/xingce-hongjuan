@@ -277,6 +277,7 @@ def sign(unsigned):
              "-dname", "CN=HongJuan, OU=Study, O=Local, L=Local, C=CN"])
     run(["java", "-jar", os.path.join(BT, "lib", "apksigner.jar"), "sign",
          "--ks", KS, "--ks-pass", "pass:" + KSPASS, "--key-pass", "pass:" + KSPASS,
+         "--v4-signing-enabled", "false",
          "--out", apk, aligned])
     print("  已签名：%s（%.1f MB）" % (apk, os.path.getsize(apk) / 1048576))
     return apk

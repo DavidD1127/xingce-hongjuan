@@ -22,3 +22,7 @@ android/assets/
 android/build/
 android/hongjuan.keystore
 *.idsig
+
+# 看门程序的运行日志与启动脚本产物
+tools/server.log
+*.vbs
