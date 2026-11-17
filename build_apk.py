@@ -19,7 +19,7 @@ import time
 import zipfile
 from concurrent.futures import ThreadPoolExecutor
 
-from PIL import Image
+from PIL import Image, ImageFilter
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ANDROID = os.path.join(HERE, "android")
@@ -92,8 +92,9 @@ def convert_one(rel, out_dir):
         return rel, None
     base = os.path.basename(rel)
     stem, ext = os.path.splitext(base)
+
     if rel.startswith("题目图/"):
-        # 题目图偏大，转 WebP；转完不划算就留着原图
+        # 题目图偏大，转 WebP；画质给足，宁可包里大一点
         name = "t_" + stem + ".webp"
         dst = os.path.join(out_dir, name)
         if not os.path.exists(dst):
@@ -102,7 +103,7 @@ def convert_one(rel, out_dir):
                 im.load()
                 if im.mode not in ("RGB", "RGBA"):
                     im = im.convert("RGBA" if "A" in im.getbands() else "RGB")
-                im.save(dst, "WEBP", quality=84, method=4)
+                im.save(dst, "WEBP", quality=92, method=5)
                 if os.path.getsize(dst) >= os.path.getsize(src):
                     os.remove(dst)
                     raise ValueError("bigger")
@@ -112,14 +113,29 @@ def convert_one(rel, out_dir):
                 if not os.path.exists(dst):
                     shutil.copy2(src, dst)
         return rel, name
-    # 公式图都是小图，原样带过去
-    name = "f_" + base
+
+    # 公式图原本只有十几像素高，直接显示会被屏幕放大得发虚。
+    # 放大 3 倍后压成 4 色 PNG：体积只有无损 WebP 的六分之一，
+    # 白底靠 CSS 的 multiply 混色吃掉，页面上看不出来。
+    name = "f_" + stem + ".png"
     dst = os.path.join(out_dir, name)
     if not os.path.exists(dst):
         try:
-            os.link(src, dst)
-        except OSError:
-            shutil.copy2(src, dst)
+            im = Image.open(src).convert("RGBA")
+            big = im.resize((im.width * 3, im.height * 3), Image.LANCZOS)
+            flat = Image.new("RGBA", big.size, (255, 255, 255, 255))
+            flat.alpha_composite(big)
+            flat.convert("L").convert("P", palette=Image.ADAPTIVE, colors=4).save(
+                dst, "PNG", optimize=True)
+        except Exception:
+            # 缩放失败就退回原图，宁可糊也别缺图
+            name = "f_" + base
+            dst = os.path.join(out_dir, name)
+            if not os.path.exists(dst):
+                try:
+                    os.link(src, dst)
+                except OSError:
+                    shutil.copy2(src, dst)
     return rel, name
 
 

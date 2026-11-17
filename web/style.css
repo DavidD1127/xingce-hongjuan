@@ -22,9 +22,12 @@ body{
 a{color:var(--red);text-decoration:none}
 h1,h2,h3{font-family:"Noto Serif SC","Source Han Serif SC","Songti SC",SimSun,serif;font-weight:700}
 img{max-width:100%;height:auto;vertical-align:middle}
-/* 题库里的公式是十几像素高的小 PNG，手机上一放大就发虚。
-   按文字比例放大，并让浏览器走锐利插值，分数线和根号才认得出。 */
-img[flag="tex"]{height:1.32em;width:auto;vertical-align:-0.28em;image-rendering:-webkit-optimize-contrast}
+/* 题库里的公式是十几像素高的小 PNG。打包时已放大 3 倍压成 4 色图（白底），
+   页面按文字比例显示，等于缩小取样；白底用 multiply 融进背景。 */
+img[flag="tex"]{height:1.45em;width:auto;vertical-align:-0.32em;
+  mix-blend-mode:multiply;image-rendering:-webkit-optimize-contrast}
+.opt img[flag="tex"]{height:1.75em;vertical-align:-0.4em}
+.mat img[flag="tex"]{height:1.45em}
 
 /* ---------- 顶栏 ---------- */
 #top{background:var(--white);border-bottom:1px solid var(--line)}
@@ -239,6 +242,8 @@ body::before{content:"";position:fixed;left:0;right:0;top:0;height:3px;backgroun
   .mod-row .nm{font-size:13px;white-space:nowrap}
 
   .stem{font-size:16px;line-height:1.9}
+  img[flag="tex"]{height:1.6em}
+  .opt img[flag="tex"]{height:1.95em}
   .opt{padding:12px;font-size:15px;min-height:48px}
   .btn{padding:12px 20px;min-height:46px}
   .btn.sm{padding:10px 14px}
