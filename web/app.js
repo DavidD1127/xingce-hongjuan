@@ -166,8 +166,10 @@ function drawQuestion() {
 
 // 图形题的选项常常只有一张图或干脆只有字母，只在有文字时补一列
 function optHtml(o) {
-  const txt = String(o.v || '').replace(/<[^>]+>/g, '').trim();
-  const body = (txt && txt !== o.k) ? '<span>' + rich(o.v) + '</span>' : '';
+  const raw = String(o.v || '');
+  // 选项可能只有一张公式图，去标签后是空的，这时候不能当成“没内容”
+  const txt = raw.replace(/<[^>]+>/g, '').trim();
+  const body = (/<img/i.test(raw) || (txt && txt !== o.k)) ? '<span>' + rich(raw) + '</span>' : '';
   return '<button class="opt" data-k="' + o.k + '"><span class="k">' + o.k + '</span>' + body + '</button>';
 }
 

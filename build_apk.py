@@ -71,11 +71,12 @@ def prepare_www():
 
 
 def img_references(db_path):
-    """题库里所有 src="/img/..." 的引用，返回 {相对路径: 出现次数}。"""
+    """题库里所有图片引用，返回 {相对路径: 出现次数}。
+    选项存在 JSON 字段里，引号是转义过的，所以两种写法都要认。"""
     con = sqlite3.connect(db_path)
     refs = {}
-    pat = re.compile(r'src="/img/([^"]+)"')
-    for row in con.execute("SELECT stem, analysis, material FROM questions"):
+    pat = re.compile(r'src=\\?"/img/([^"\\]+)')
+    for row in con.execute("SELECT stem, analysis, material, options FROM questions"):
         for blob in row:
             if not blob:
                 continue
@@ -160,21 +161,26 @@ def rewrite_db(mapping):
     if not mapping:
         return target
     con = sqlite3.connect(target)
-    pat = re.compile(r'src="/img/([^"]+)"')
+    # 题干和解析里是 src="/img/…"，选项存在 JSON 里，引号被转义成了 src=\"/img/…
+    # 两种形式都要认，否则选项里的公式图会指向不存在的路径。
+    pat = re.compile(r'src=\\?"/img/([^"\\]+)')
 
     def fix(m):
+        quote = '\\"' if m.group(0).startswith('src=\\"') else '"'
         rel = m.group(1)
-        return 'src="/img/%s"' % mapping.get(rel, rel)
+        return 'src=' + quote + '/img/' + mapping.get(rel, rel) + quote
 
-    rows = con.execute("SELECT qid, stem, analysis, material FROM questions").fetchall()
+    rows = con.execute("SELECT qid, stem, analysis, material, options FROM questions").fetchall()
     upd = []
-    for qid, stem, ana, mat in rows:
+    for qid, stem, ana, mat, opts in rows:
         nstem = pat.sub(fix, stem or "")
         nana = pat.sub(fix, ana or "")
         nmat = pat.sub(fix, mat or "")
-        if (nstem, nana, nmat) != (stem or "", ana or "", mat or ""):
-            upd.append((nstem, nana, nmat, qid))
-    con.executemany("UPDATE questions SET stem=?, analysis=?, material=? WHERE qid=?", upd)
+        nopts = pat.sub(fix, opts or "")
+        if (nstem, nana, nmat, nopts) != (stem or "", ana or "", mat or "", opts or ""):
+            upd.append((nstem, nana, nmat, nopts, qid))
+    con.executemany(
+        "UPDATE questions SET stem=?, analysis=?, material=?, options=? WHERE qid=?", upd)
     # 打包出去的应该是干净的题库，桌面上的做题记录不带走
     for t in ("srs", "reviews", "favorites", "notes", "settings"):
         con.execute("DELETE FROM %s" % t)
