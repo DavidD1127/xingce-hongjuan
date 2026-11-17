@@ -23,3 +23,6 @@ android/hongjuan.keystore
 
 # 临时局域网共享目录
 .share/
+
+# DSH 会话元数据
+.dsh-ops/
