@@ -22,6 +22,9 @@ body{
 a{color:var(--red);text-decoration:none}
 h1,h2,h3{font-family:"Noto Serif SC","Source Han Serif SC","Songti SC",SimSun,serif;font-weight:700}
 img{max-width:100%;height:auto;vertical-align:middle}
+/* 题库里的公式是十几像素高的小 PNG，手机上一放大就发虚。
+   按文字比例放大，并让浏览器走锐利插值，分数线和根号才认得出。 */
+img[flag="tex"]{height:1.32em;width:auto;vertical-align:-0.28em;image-rendering:-webkit-optimize-contrast}
 
 /* ---------- 顶栏 ---------- */
 #top{background:var(--white);border-bottom:1px solid var(--line)}

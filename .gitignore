@@ -20,3 +20,6 @@ android/hongjuan.keystore
 *.aab
 *.idsig
 *.keystore
+
+# 临时局域网共享目录
+.share/
