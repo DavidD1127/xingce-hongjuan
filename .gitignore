@@ -7,21 +7,16 @@ hongjuan.db-shm
 __pycache__/
 *.py[cod]
 
-# 构建与测试临时文件
+# 构建与调试的临时文件
 .tmp*
-android/app/build/
-android/build/
-android/.gradle/
-android/local.properties
-*.apk
-*.aab
-*.keystore
 
-# 安卓构建产物：assets 里是复制过去的题库与图片（可由 build_apk.py 重新生成）
+# 安卓构建产物：assets 里是复制过去的题库与图片，由 build_apk.py 重新生成
 android/assets/
 android/build/
 android/hongjuan.keystore
-*.idsig
 
-# 看门程序的运行日志与启动脚本产物
-tools/server.log
+# 安装包与签名附属文件
+*.apk
+*.aab
+*.idsig
+*.keystore
