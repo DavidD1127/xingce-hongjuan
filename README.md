@@ -6,8 +6,9 @@
 - 手机版：额外要 JDK 17、Android SDK 34、Pillow，出的是离线 APK（题库和配图全在包里）
 
 <p>
-  <img src="docs/首页.png" width="430" alt="今日页">
-  <img src="docs/手机答题.png" width="210" alt="手机答题">
+  <img src="docs/首页.png" width="270" alt="今日页">
+  <img src="docs/选科.png" width="270" alt="挑范围">
+  <img src="docs/手机答题.png" width="180" alt="手机答题">
 </p>
 
 ## 为什么有这个东西
