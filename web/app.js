@@ -2,11 +2,22 @@
 
 const app = document.getElementById('app');
 
-// 题库里有极少数图缺失，别让它留个破图图标
+// 图片加载失败时留个占位，别让选项直接变空白——那分不清是没图还是坏了
+const MISSING_IMG = [];
 document.addEventListener('error', e => {
   const t = e.target;
-  if (t && t.tagName === 'IMG') t.style.display = 'none';
+  if (!t || t.tagName !== 'IMG' || t.dataset.miss) return;
+  t.dataset.miss = '1';
+  const src = t.getAttribute('src') || '';
+  if (MISSING_IMG.indexOf(src) < 0 && MISSING_IMG.length < 300) MISSING_IMG.push(src);
+  console.warn('img-miss ' + src);
+  const ph = document.createElement('span');
+  ph.className = 'img-miss';
+  ph.title = src;
+  ph.textContent = '图缺失';
+  if (t.parentNode) t.parentNode.replaceChild(ph, t);
 }, true);
+window.MISSING_IMG = MISSING_IMG;
 const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
 // 题干里的 **加粗** 转成标签，其余 HTML 原样保留
@@ -136,7 +147,8 @@ function drawQuestion() {
     (q.region ? '<i>' + esc(q.region) + '</i>' : '') +
     (q.n_papers > 1 ? '<i>收录 ' + q.n_papers + ' 卷</i>' : '') +
     (multi ? '<i>多选</i>' : '') + '</span></div>' +
-    (q.material ? '<div class="mat"><div class="mh">给定材料</div>' + rich(q.material) + '</div>' : '') +
+    (q.material ? '<div class="mat"><div class="mh"><span>给定材料</span>' +
+      '<button class="mat-btn">展开</button></div>' + rich(q.material) + '</div>' : '') +
     '<div class="stem">' + rich(q.stem) + '</div>' +
     '<div class="opts">' + S.list[S.i].options.map(optHtml).join('') + '</div>' +
     '<div id="after"></div>' +
@@ -260,6 +272,45 @@ async function editNote() {
 }
 
 // ---------- 首页 ----------
+async function exportProgress() {
+  try {
+    const d = await api('export');
+    const txt = JSON.stringify(d);
+    const b = bridge();
+    if (b && b.share) { b.share(txt); return; }        // 安卓：交给系统分享面板
+    const blob = new Blob([txt], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'hongjuan-progress-' + new Date().toISOString().slice(0, 10) + '.json';
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 3000);
+  } catch (e) {
+    fail(e);
+  }
+}
+
+async function doImport() {
+  const ta = document.getElementById('imp-text');
+  const txt = (ta && ta.value || '').trim();
+  if (!txt) { ta.placeholder = '先粘贴一份导出的 JSON'; return; }
+  let data;
+  try {
+    data = JSON.parse(txt);
+  } catch (e) {
+    ta.placeholder = '这段不是合法 JSON，检查一下有没有粘全';
+    return;
+  }
+  try {
+    const r = await api('import', data);
+    window.scrollTo(0, 0);
+    viewHome();
+    setTimeout(() => { const s = document.querySelector('.sub'); if (s) s.textContent = '已导入 ' + (r.count || 0) + ' 条学习记录'; }, 300);
+  } catch (e) {
+    fail(e);
+  }
+}
+
 async function viewHome() {
   app.innerHTML = '<div class="loading">翻本子中</div>';
   try {
@@ -290,10 +341,26 @@ async function viewHome() {
       '<p class="sub">全库 ' + d.total + ' 题，还剩 ' + d.new_left + ' 题没碰过。</p>' +
       '</div>' +
       '<div class="sheet"><h2>六科进度</h2><p class="sub">学过的算进去，学一半的也算</p>' +
-      '<div class="mod-list">' + rows + '</div></div>';
+      '<div class="mod-list">' + rows + '</div></div>' +
+      '<div class="sheet"><h2>进度保险</h2>' +
+      '<p class="sub">换手机或重装前导一份，回来再灌回去。只带记录，不带题库。</p>' +
+      '<div class="acts">' +
+      '<button class="btn ghost" id="exp">导出进度</button>' +
+      '<button class="btn ghost" id="imp">导入进度</button>' +
+      '</div>' +
+      '<div id="imp-box" style="display:none">' +
+      '<textarea id="imp-text" placeholder="把导出的 JSON 整段粘在这里"></textarea>' +
+      '<div class="acts"><button class="btn" id="imp-do">确认导入</button></div>' +
+      '</div></div>';
     document.getElementById('go-study').onclick = () => { S.list = []; location.hash = '#/study'; };
     document.getElementById('go-review').onclick = () => { location.hash = '#/review'; };
     document.getElementById('go-wrong').onclick = () => { location.hash = '#/wrong'; };
+    document.getElementById('exp').onclick = exportProgress;
+    document.getElementById('imp').onclick = () => {
+      const box = document.getElementById('imp-box');
+      box.style.display = box.style.display === 'none' ? 'block' : 'none';
+    };
+    document.getElementById('imp-do').onclick = doImport;
   } catch (e) { fail(e); }
 }
 
@@ -367,7 +434,8 @@ async function viewOne(qid) {
       '<div class="qhead"><span class="qno">' + esc(q.module) + ' · ' + esc(q.category) + '</span>' +
       '<span class="tags">' + (q.year ? '<i>' + esc(q.year) + '</i>' : '') +
       (q.region ? '<i>' + esc(q.region) + '</i>' : '') + '<i>qid ' + esc(q.qid) + '</i></span></div>' +
-      (q.material ? '<div class="mat"><div class="mh">给定材料</div>' + rich(q.material) + '</div>' : '') +
+      (q.material ? '<div class="mat"><div class="mh"><span>给定材料</span>' +
+      '<button class="mat-btn">展开</button></div>' + rich(q.material) + '</div>' : '') +
       '<div class="stem">' + rich(q.stem) + '</div>' +
       '<div class="opts">' + opts + '</div>' +
       '<div class="ana"><div class="ah">答案 ' + esc(q.answer) + '</div>' + (rich(q.analysis) || '<p class="sub">原库无解析</p>') + '</div>' +
@@ -442,6 +510,16 @@ function route() {
   if (m) { mark('browse'); return viewOne(m[1]); }
   mark('home'); viewHome();
 }
+
+// 长材料默认限高滚动，点「展开」看全文；用委托，答题页和题库页共用
+document.addEventListener('click', e => {
+  const b = e.target.closest ? e.target.closest('.mat-btn') : null;
+  if (!b) return;
+  const box = b.closest('.mat');
+  if (!box) return;
+  const open = box.classList.toggle('open');
+  b.textContent = open ? '收起' : '展开';
+});
 
 // 键盘：A-D 选，Enter 对答案，1-4 自评
 document.addEventListener('keydown', e => {

@@ -39,7 +39,21 @@ VAULT_IMG = os.environ.get("HJ_IMG") or r"D:\AI\xingcezhenti\90-图片"
 IMAGE_OUT = os.path.join(ASSETS, "img")
 PKG = "com.huasufang.hongjuan"
 KS = os.path.join(ANDROID, "hongjuan.keystore")
-KSPASS = "hongjuan2026"
+KS_ALIAS = "hongjuan"
+
+
+def ks_pass():
+    """签名密码不写进源码：优先环境变量 HJ_KS_PASS，其次 android/.kspass（不入库）。"""
+    p = os.environ.get("HJ_KS_PASS")
+    if p:
+        return p.strip()
+    f = os.path.join(ANDROID, ".kspass")
+    if os.path.isfile(f):
+        return open(f, encoding="utf-8").read().strip()
+    return ""
+
+
+KSPASS = ks_pass()
 
 sys.stdout.reconfigure(encoding="utf-8")
 
@@ -179,12 +193,13 @@ def rewrite_db(mapping):
     con = sqlite3.connect(target)
     # 题干和解析里是 src="/img/…"，选项存在 JSON 里，引号被转义成了 src=\"/img/…
     # 两种形式都要认，否则选项里的公式图会指向不存在的路径。
-    pat = re.compile(r'src=\\?"/img/([^"\\]+)')
+    # 结尾的引号必须一起吃掉：只替换到引号前再补一个引号，会拼出 src="…"" 这种畸形属性，
+    # 部分 WebView 会因此取不到图片。\1 是起始处的转义符（JSON 字段里是 \"，HTML 字段里是 "）。
+    pat = re.compile(r'src=(\\?)"/img/([^"\\]+)\\?"')
 
     def fix(m):
-        quote = '\\"' if m.group(0).startswith('src=\\"') else '"'
-        rel = m.group(1)
-        return 'src=' + quote + '/img/' + mapping.get(rel, rel) + quote
+        slash, rel = m.group(1), m.group(2)
+        return 'src=' + slash + '"/img/' + mapping.get(rel, rel) + slash + '"'
 
     rows = con.execute("SELECT qid, stem, analysis, material, options FROM questions").fetchall()
     upd = []
@@ -202,6 +217,10 @@ def rewrite_db(mapping):
         con.execute("DELETE FROM %s" % t)
     con.commit()
     con.close()
+    # 给安卓壳一个版本号：题库变了就重新拷一份并把学习记录迁过去。
+    # 只用 mtime+大小，不做内容哈希——打包一次变一次就够了。
+    with open(os.path.join(dst, "build.txt"), "w", encoding="utf-8") as fh:
+        fh.write("%d-%d" % (int(os.path.getmtime(target)), os.path.getsize(target)))
     print("  题库图片路径改写 %d 行，学习记录已清空" % len(upd))
     return target
 
@@ -287,13 +306,17 @@ def assemble(base_apk, dex):
 
 
 def sign(unsigned):
+    if not KSPASS:
+        raise SystemExit(
+            "缺少签名密码。二选一：\n"
+            "  设置环境变量 HJ_KS_PASS，或把密码写进 android/.kspass（该文件已被 git 忽略）")
     aligned = os.path.join(BUILD, "aligned.apk")
     apk = os.path.join(HERE, "行测红卷.apk")
     if os.path.exists(aligned):
         os.remove(aligned)
     run([os.path.join(BT, "zipalign.exe"), "-f", "4", unsigned, aligned])
     if not os.path.exists(KS):
-        run(["keytool", "-genkeypair", "-keystore", KS, "-alias", "hongjuan",
+        run(["keytool", "-genkeypair", "-keystore", KS, "-alias", KS_ALIAS,
              "-keyalg", "RSA", "-keysize", "2048", "-validity", "10000",
              "-storepass", KSPASS, "-keypass", KSPASS,
              "-dname", "CN=HongJuan, OU=Study, O=Local, L=Local, C=CN"])
@@ -303,6 +326,22 @@ def sign(unsigned):
          "--out", apk, aligned])
     print("  已签名：%s（%.1f MB）" % (apk, os.path.getsize(apk) / 1048576))
     return apk
+
+
+def warn_stale_assets():
+    """--skip-assets 不重建题库：源库比上次打包新的话，出的包在手机上还是旧题。"""
+    bt = os.path.join(ASSETS, "db", "build.txt")
+    if not os.path.exists(bt):
+        print("  [警告] 缺少 build.txt，安卓端认不出题库版本；建议不做 --skip-assets")
+        return
+    try:
+        built = int(open(bt, encoding="utf-8").read().strip().split("-")[0])
+    except Exception:
+        print("  [警告] build.txt 读不出来，建议完整构建")
+        return
+    if os.path.getmtime(DB_SRC) > built:
+        print("  [警告] hongjuan.db 比上次打包时更新，这次不会重建题库：")
+        print("         手机上仍然用旧库。要更新题库请去掉 --skip-assets。")
 
 
 def main():
@@ -315,6 +354,7 @@ def main():
         rewrite_db(db_copy)
     else:
         print("[1/5] 复用已有 assets")
+        warn_stale_assets()
 
     print("[2/5] 编译资源")
     base = compile_resources()

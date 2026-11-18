@@ -63,6 +63,57 @@ def write(sql, args=()):
         c.close()
 
 
+# ---------- 进度导出 / 导入 ----------
+
+def export_progress():
+    return {
+        "app": "hongjuan",
+        "version": 1,
+        "exported": today(),
+        "srs": many("SELECT qid,status,ease,interval,reps,lapses,due,last,right_cnt,wrong_cnt FROM srs"),
+        "reviews": many("SELECT qid,grade,right,ts FROM reviews"),
+        "favorites": many("SELECT qid,added FROM favorites"),
+        "notes": many("SELECT qid,text,updated FROM notes"),
+    }
+
+
+def import_progress(body):
+    srs = body.get("srs") or []
+    rev = body.get("reviews") or []
+    fav = body.get("favorites") or []
+    nts = body.get("notes") or []
+    if not any([srs, rev, fav, nts]):
+        return {"error": "这份 JSON 里没有可导入的记录"}
+    c = conn()
+    try:
+        with _lock:
+            c.execute("DELETE FROM srs")
+            c.execute("DELETE FROM reviews")
+            c.execute("DELETE FROM favorites")
+            c.execute("DELETE FROM notes")
+            c.executemany(
+                "INSERT OR REPLACE INTO srs(qid,status,ease,interval,reps,lapses,due,last,right_cnt,wrong_cnt)"
+                " VALUES(?,?,?,?,?,?,?,?,?,?)",
+                [(r.get("qid"), r.get("status", "new"), r.get("ease", 2.5),
+                  r.get("interval", 0), r.get("reps", 0), r.get("lapses", 0),
+                  r.get("due"), r.get("last"), r.get("right_cnt", 0), r.get("wrong_cnt", 0))
+                 for r in srs])
+            if rev:
+                c.executemany(
+                    "INSERT INTO reviews(qid,grade,right,ts) VALUES(?,?,?,?)",
+                    [(r.get("qid"), r.get("grade", 0), r.get("right", 0), r.get("ts", "")) for r in rev])
+            if fav:
+                c.executemany("INSERT OR REPLACE INTO favorites(qid,added) VALUES(?,?)",
+                              [(r.get("qid"), r.get("added", "")) for r in fav])
+            if nts:
+                c.executemany("INSERT OR REPLACE INTO notes(qid,text,updated) VALUES(?,?,?)",
+                              [(r.get("qid"), r.get("text", ""), r.get("updated", "")) for r in nts])
+            c.commit()
+    finally:
+        c.close()
+    return {"ok": True, "count": len(srs)}
+
+
 # ---------- SM-2 ----------
 
 def schedule(cur, grade, today_iso):
@@ -296,6 +347,10 @@ class Handler(BaseHTTPRequestHandler):
             else:
                 write("DELETE FROM notes WHERE qid=?", (qid,))
             return self._json({"ok": True})
+        if name == "export":
+            return self._json(export_progress())
+        if name == "import":
+            return self._json(import_progress(body or {}))
         return self._json({"error": "no such api"}, 404)
 
     def overview(self):

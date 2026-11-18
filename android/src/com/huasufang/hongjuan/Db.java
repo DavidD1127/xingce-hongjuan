@@ -35,10 +35,92 @@ public class Db {
         ctx = c;
     }
 
-    /** 首次启动把随包带的题库拷到应用私有目录。 */
+    /** 首次启动把随包带的题库拷到应用私有目录；题库换了就迁移学习记录。 */
     void ensure() {
         File f = ctx.getDatabasePath("hongjuan.db");
-        if (f.exists() && f.length() > 1000000L) return;
+        String want = assetText("db/build.txt");
+        if (f.exists() && f.length() > 1000000L) {
+            if (want.length() == 0) return;                 // 旧包没有版本号，保持原样
+            if (want.equals(settingRead(f, "db_build"))) return;
+            // 题库版本变了：先把旧库留一份，拷新库，再把做题记录搬过去
+            File bak = new File(f.getPath() + ".bak");
+            if (bak.exists() && !bak.delete()) return;      // 备份失败就不动，宁可先用旧库
+            if (!f.renameTo(bak)) {
+                bak = null;
+                if (!f.delete()) return;
+            }
+            copyAssetDb(f);
+            if (bak != null) {
+                migrate(bak, f);
+                bak.delete();
+            }
+            settingWrite(f, "db_build", want);
+            return;
+        }
+        copyAssetDb(f);
+        if (want.length() > 0) settingWrite(f, "db_build", want);
+    }
+
+    private String assetText(String path) {
+        InputStream in = null;
+        try {
+            in = ctx.getAssets().open(path);
+            byte[] buf = new byte[256];
+            int n = in.read(buf);
+            return n <= 0 ? "" : new String(buf, 0, n, "UTF-8").trim();
+        } catch (IOException e) {
+            return "";
+        } finally {
+            close(in);
+        }
+    }
+
+    private String settingRead(File dbFile, String key) {
+        SQLiteDatabase d = null;
+        Cursor c = null;
+        try {
+            d = SQLiteDatabase.openDatabase(dbFile.getPath(), null, SQLiteDatabase.OPEN_READONLY);
+            c = d.rawQuery("SELECT value FROM settings WHERE key=?", new String[]{key});
+            return c.moveToFirst() ? c.getString(0) : "";
+        } catch (Exception e) {
+            return "";
+        } finally {
+            if (c != null) c.close();
+            if (d != null) d.close();
+        }
+    }
+
+    private void settingWrite(File dbFile, String key, String value) {
+        SQLiteDatabase d = null;
+        try {
+            d = SQLiteDatabase.openDatabase(dbFile.getPath(), null, SQLiteDatabase.OPEN_READWRITE);
+            d.execSQL("INSERT OR REPLACE INTO settings(key,value) VALUES(?,?)", new Object[]{key, value});
+        } catch (Exception ignored) {
+        } finally {
+            if (d != null) d.close();
+        }
+    }
+
+    /** 把旧库里的 srs / reviews / favorites / notes 搬进新库。题号是稳定键，直接照抄。 */
+    private void migrate(File oldDb, File newDb) {
+        SQLiteDatabase d = null;
+        try {
+            d = SQLiteDatabase.openDatabase(newDb.getPath(), null, SQLiteDatabase.OPEN_READWRITE);
+            d.execSQL("ATTACH DATABASE ? AS old", new Object[]{oldDb.getPath()});
+            d.execSQL("INSERT OR REPLACE INTO srs(qid,status,ease,interval,reps,lapses,due,last,right_cnt,wrong_cnt)" +
+                    " SELECT qid,status,ease,interval,reps,lapses,due,last,right_cnt,wrong_cnt FROM old.srs");
+            d.execSQL("INSERT OR IGNORE INTO favorites(qid,added) SELECT qid,added FROM old.favorites");
+            d.execSQL("INSERT OR REPLACE INTO notes(qid,text,updated) SELECT qid,text,updated FROM old.notes");
+            d.execSQL("INSERT INTO reviews(qid,grade,right,ts) SELECT qid,grade,right,ts FROM old.reviews");
+            d.execSQL("DETACH DATABASE old");
+        } catch (Exception ignored) {
+            // 迁移失败不影响新题库可用，大不了记录从零开始
+        } finally {
+            if (d != null) d.close();
+        }
+    }
+
+    private void copyAssetDb(File f) {
         File dir = f.getParentFile();
         if (dir != null) dir.mkdirs();
         InputStream in = null;
@@ -148,6 +230,8 @@ public class Db {
             else if (name.endsWith("grade")) out = grade(body).toString();
             else if (name.endsWith("fav")) out = fav(body).toString();
             else if (name.endsWith("note")) out = note(body).toString();
+            else if (name.endsWith("export")) out = exportData().toString();
+            else if (name.endsWith("import")) out = importData(body).toString();
             else out = new JSONObject().put("__error", "unknown api " + name).toString();
             return fixImg(out);
         } catch (Exception e) {
@@ -574,6 +658,96 @@ public class Db {
             return new JSONObject().put("ok", true);
         } catch (Exception e) {
             return new JSONObject();
+        }
+    }
+
+    /** 学习记录打成一段 JSON，换机或重装后灌回去。只带记录，不带题库。 */
+    private JSONObject exportData() {
+        JSONObject o = new JSONObject();
+        try {
+            o.put("app", "hongjuan");
+            o.put("version", 1);
+            o.put("exported", today());
+            o.put("srs", new JSONArray(rows(
+                    "SELECT qid,status,ease,interval,reps,lapses,due,last,right_cnt,wrong_cnt FROM srs")));
+            o.put("reviews", new JSONArray(rows("SELECT qid,grade,right,ts FROM reviews")));
+            o.put("favorites", new JSONArray(rows("SELECT qid,added FROM favorites")));
+            o.put("notes", new JSONArray(rows("SELECT qid,text,updated FROM notes")));
+        } catch (Exception e) {
+            return err("导出失败：" + e);
+        }
+        return o;
+    }
+
+    /** 覆盖导入。四张表先清空再灌，避免和现有记录混成两套。 */
+    private JSONObject importData(JSONObject body) {
+        JSONArray srs = body.optJSONArray("srs");
+        JSONArray rev = body.optJSONArray("reviews");
+        JSONArray fav = body.optJSONArray("favorites");
+        JSONArray nts = body.optJSONArray("notes");
+        if (srs == null && rev == null && fav == null && nts == null) {
+            return err("这份 JSON 里没有可导入的记录");
+        }
+        int n = 0;
+        synchronized (writeLock) {
+            SQLiteDatabase d = db();
+            d.beginTransaction();
+            try {
+                d.delete("srs", null, null);
+                d.delete("reviews", null, null);
+                d.delete("favorites", null, null);
+                d.delete("notes", null, null);
+                if (srs != null) {
+                    for (int i = 0; i < srs.length(); i++) {
+                        JSONObject r = srs.optJSONObject(i);
+                        if (r == null) continue;
+                        d.execSQL("INSERT OR REPLACE INTO srs(qid,status,ease,interval,reps,lapses,due,last,right_cnt,wrong_cnt)" +
+                                        " VALUES(?,?,?,?,?,?,?,?,?,?)",
+                                new Object[]{r.optString("qid"), r.optString("status", "new"),
+                                        r.optDouble("ease", 2.5), r.optInt("interval", 0),
+                                        r.optInt("reps", 0), r.optInt("lapses", 0),
+                                        r.optString("due", null), r.optString("last", null),
+                                        r.optInt("right_cnt", 0), r.optInt("wrong_cnt", 0)});
+                        n++;
+                    }
+                }
+                if (rev != null) {
+                    for (int i = 0; i < rev.length(); i++) {
+                        JSONObject r = rev.optJSONObject(i);
+                        if (r == null) continue;
+                        d.execSQL("INSERT INTO reviews(qid,grade,right,ts) VALUES(?,?,?,?)",
+                                new Object[]{r.optString("qid"), r.optInt("grade", 0),
+                                        r.optInt("right", 0), r.optString("ts", "")});
+                    }
+                }
+                if (fav != null) {
+                    for (int i = 0; i < fav.length(); i++) {
+                        JSONObject r = fav.optJSONObject(i);
+                        if (r == null) continue;
+                        d.execSQL("INSERT OR REPLACE INTO favorites(qid,added) VALUES(?,?)",
+                                new Object[]{r.optString("qid"), r.optString("added", "")});
+                    }
+                }
+                if (nts != null) {
+                    for (int i = 0; i < nts.length(); i++) {
+                        JSONObject r = nts.optJSONObject(i);
+                        if (r == null) continue;
+                        d.execSQL("INSERT OR REPLACE INTO notes(qid,text,updated) VALUES(?,?,?)",
+                                new Object[]{r.optString("qid"), r.optString("text", ""),
+                                        r.optString("updated", "")});
+                    }
+                }
+                d.setTransactionSuccessful();
+            } catch (Exception e) {
+                return err("导入失败：" + e);
+            } finally {
+                d.endTransaction();
+            }
+        }
+        try {
+            return new JSONObject().put("ok", true).put("count", n);
+        } catch (Exception e) {
+            return ok();
         }
     }
 

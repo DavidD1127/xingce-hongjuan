@@ -122,6 +122,22 @@ main{max-width:880px;margin:0 auto;padding:26px 18px 80px}
 .mat::-webkit-scrollbar-thumb{background:var(--line-2)}
 .mat::-webkit-scrollbar-track{background:#efe7d8}
 .mat .mh{font-size:12.5px;color:var(--ink-2);letter-spacing:1px;margin-bottom:6px}
+/* 点「展开」放开限高，长材料能整段读 */
+.mat.open{max-height:none}
+.mat-btn{
+  float:right;border:1px solid var(--line-2);background:var(--white);color:var(--ink-2);
+  font:inherit;font-size:11.5px;padding:1px 8px;cursor:pointer;letter-spacing:0;
+}
+.mat-btn:hover{border-color:var(--red);color:var(--red)}
+/* 图片缺失时留个记号，别让选项看着像空的 */
+.img-miss{
+  display:inline-block;min-width:3.4em;padding:0 .4em;border:1px dashed var(--line-2);
+  color:var(--ink-2);font-size:.76em;line-height:1.7;vertical-align:-.26em;text-align:center;
+}
+#imp-text{
+  width:100%;min-height:96px;margin-top:10px;padding:10px;box-sizing:border-box;
+  border:1px solid var(--line-2);background:var(--white);font:inherit;font-size:13px;color:inherit;
+}
 .stem{font-size:16.5px;line-height:1.95;margin:14px 0 18px}
 .stem p{margin:.5em 0}
 
