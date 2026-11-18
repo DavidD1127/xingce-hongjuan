@@ -135,6 +135,21 @@ python build_apk.py
 
 图片不复制，直接读上游目录。换题库时把 `HJ_IMG` 环境变量指到新的 `90-图片` 就行。
 
+## 发版
+
+Android 只认 `versionCode` 判断升级，所以版本号跟着包走：
+
+```
+python build_apk.py --bump        # 版本号 +1 再出包，versionName 变成 1.0.N
+python tools/smoke.py --install   # 真机过一遍
+git tag v1.0.N && git push origin main --tags
+gh release create v1.0.N 行测红卷.apk --notes-file docs/release-notes.md
+```
+
+细节见 [`docs/发版.md`](docs/发版.md)，Release 正文模板在 [`docs/release-notes.md`](docs/release-notes.md)。
+
+签名 keystore 一丢就再也无法覆盖安装，务必另外备份。
+
 ## 和原项目的差别
 
 砍掉了这些：多账号注册登录、模拟考试、疑点复核、考点导航、运营面板、Service Worker、云同步。

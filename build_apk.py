@@ -4,8 +4,12 @@
 把 web/ 页面、hongjuan.db 题库、题目配图一起塞进一个安卓安装包。
 
     python build_apk.py            完整构建
+    python build_apk.py --bump     先把版本号 +1 再构建（发 Release 用）
     python build_apk.py --assets   只准备资源（图片转换慢，可单独跑）
     python build_apk.py --skip-assets  复用上次准备好的资源，只重编代码
+
+版本号存在 version.txt 里：Android 只认 versionCode 判断是不是升级，
+所以每次发版都要 --bump，versionName 会自动变成 1.N。
 
 依赖：JDK 17、Android SDK（build-tools 34 + platform android-34）、Pillow。
 """
@@ -40,6 +44,15 @@ IMAGE_OUT = os.path.join(ASSETS, "img")
 PKG = "com.huasufang.hongjuan"
 KS = os.path.join(ANDROID, "hongjuan.keystore")
 KS_ALIAS = "hongjuan"
+VER_FILE = os.path.join(HERE, "version.txt")
+
+
+def read_version_code():
+    """版本号单独存一行，发版时 --bump 自增；Android 只认这个数判断升级。"""
+    try:
+        return max(1, int(open(VER_FILE, encoding="utf-8").read().strip()))
+    except Exception:
+        return 1
 
 
 def ks_pass():
@@ -238,10 +251,12 @@ def compile_resources():
         os.remove(base)
     gen = os.path.join(BUILD, "gen")
     os.makedirs(gen, exist_ok=True)
+    code = read_version_code()
     run([os.path.join(BT, "aapt2.exe"), "link", "-o", base,
          "-I", PLATFORM, "--manifest", MANIFEST,
          "--java", gen, "--min-sdk-version", "21", "--target-sdk-version", "34",
-         "--version-code", "1", "--version-name", "1.0", res_zip])
+         "--version-code", str(code), "--version-name", "1.0.%d" % code, res_zip])
+    print("  版本 %s（versionCode %d）" % ("1.0.%d" % code, code))
     return base
 
 
@@ -347,6 +362,11 @@ def warn_stale_assets():
 def main():
     args = sys.argv[1:]
     t0 = time.time()
+    if "--bump" in args:
+        code = read_version_code() + 1
+        with open(VER_FILE, "w", encoding="utf-8") as fh:
+            fh.write("%d\n" % code)
+        print("[版本] 升到 1.%d" % code)
     if "--skip-assets" not in args:
         print("[1/5] 准备网页与题库")
         prepare_www()
