@@ -19,8 +19,27 @@ import time
 sys.stdout.reconfigure(encoding="utf-8")
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-VAULT = sys.argv[1] if len(sys.argv) > 1 else r"D:\AI\xingcezhenti"
-DB = os.path.join(HERE, "hongjuan.db")
+
+
+def parse_args():
+    """第一个位置参数是题库目录，--out 指定输出文件（默认 ./hongjuan.db）。"""
+    vault = r"D:\AI\xingcezhenti"
+    out = os.path.join(HERE, "hongjuan.db")
+    args = sys.argv[1:]
+    i = 0
+    while i < len(args):
+        a = args[i]
+        if a == "--out" and i + 1 < len(args):
+            out = args[i + 1]
+            i += 2
+            continue
+        if not a.startswith("--"):
+            vault = a
+        i += 1
+    return vault, out
+
+
+VAULT, DB = parse_args()
 MODULES = ["01-政治理论", "02-常识判断", "03-言语理解与表达",
            "04-数量关系", "05-判断推理", "06-资料分析"]
 

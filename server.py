@@ -17,7 +17,7 @@ from datetime import date, timedelta
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-DB = os.path.join(HERE, "hongjuan.db")
+DB = os.environ.get("HJ_DB") or os.path.join(HERE, "hongjuan.db")
 WEB = os.path.join(HERE, "web")
 IMG = os.environ.get("HJ_IMG") or r"D:\AI\xingcezhenti\90-图片"
 PORT = int(os.environ.get("HJ_PORT") or 8400)

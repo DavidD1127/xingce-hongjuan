@@ -5,7 +5,39 @@
 题源：`D:\AI\xingcezhenti`（ERRRC/xingcezhenti 的原始题库副本，515 套卷、58,890 行题目）。
 按 qid 去重后 **27,473 道**，六科：政治理论、常识判断、言语理解、数量关系、判断推理、资料分析。
 
+## 题库从哪来
+
+题库是别人整理的 Obsidian vault，不在本仓库里（一是体积，二是版权在人家的）。
+目录长这样，`build_db.py` 按这个结构找题：
+
+```
+01-政治理论/  *.md
+02-常识判断/
+03-言语理解与表达/
+04-数量关系/
+05-判断推理/
+06-资料分析/
+90-图片/      配图，路径由 HJ_IMG 指定
+```
+
+每篇 Markdown 里用 `### 第 N 题 <sub>qid 123 · 考点</sub>` 分题，
+选项写成 `- **A**. 内容`，答案写成 `**答案**：A`，后面跟解析。
+想完全对上格式，直接看 `sample/` 里那六篇——就是按解析规则写的。
+
 ## 跑起来
+
+**手上还没有题库也能先看效果**。仓库里带了一份 12 道题的示例（六个科目各两题），
+导入后就能把界面完整跑一遍：
+
+```
+python build_db.py sample --out sample.db     # 从 sample/ 导入示例题
+set HJ_DB=sample.db                            # PowerShell: $env:HJ_DB="sample.db"
+python server.py
+```
+
+换成自己的题库就去掉 `HJ_DB`，用默认的 `hongjuan.db`。
+
+正式用法：
 
 双击 `启动.bat`（会自己开浏览器）。
 命令行也行：
@@ -16,6 +48,9 @@ python server.py      # 起服务，默认 8400
 ```
 
 地址 <http://127.0.0.1:8400>。
+
+`build_db.py` 需要一个特定结构的 Obsidian 题库目录（六个科目子目录，每篇 Markdown 记
+若干道题），见下面的「题库从哪来」。没有的话只能跑示例。
 
 ## 有什么
 
@@ -62,6 +97,7 @@ hongjuan.db    题库 + 进度（约 85MB，跑 build_db.py 生成）
 | `ANDROID_SDK_ROOT` | Android SDK 位置 | `D:\AI\_android_sdk` |
 | `HJ_KS_PASS` | 签名密码；也可写进 `android/.kspass`（不入库） | 无，缺失会直接报错 |
 | `HJ_ADB` | adb 路径，冒烟脚本用 | MuMu 自带的那份 |
+| `HJ_DB` | 桌面版读哪个库 | `./hongjuan.db` |
 | `HJ_PORT` | 桌面版端口 | `8400` |
 
 换机器只要把这几个指对，代码不用改。
