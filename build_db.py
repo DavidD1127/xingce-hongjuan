@@ -145,6 +145,7 @@ def parse_file(path, module):
     cur = None          # 当前题块的行
     cur_no = None
     cur_mid = None      # 当前材料编号
+    cur_left = 0        # 这份材料还管几题
     mat = None          # 正在收集的材料体
 
     def flush_mat():
@@ -164,14 +165,27 @@ def parse_file(path, module):
             if m.group(3):                       # 材料头
                 flush_q(); cur = None
                 flush_mat(); mat = None
-                cur_mid = "%s|%s|%s" % (module, meta.get("试卷", ""), m.group(3))
+                # 文件名也要进来：同一份卷子常拆成好几篇笔记，各自都有「材料 2」，
+                # 只用 模块|试卷|编号 会让后面的把前面的覆盖掉，题干和材料就对不上了
+                cur_mid = "%s|%s|%s|%s" % (module, meta.get("试卷", ""),
+                                           os.path.basename(path), m.group(3))
                 mat = {"mid": cur_mid, "title": "材料 %s" % m.group(3), "lines": []}
                 continue
             if m.group(2):                       # 题头（qid 就写在这一行里）
                 flush_q()
                 if mat is not None:
-                    flush_mat(); mat = None
+                    flush_mat()
+                    # 材料正文里通常写着「回答下列5题」，照这个数限定它管几道题；
+                    # 没写就只当管紧跟着的一道，总之别让它一路挂到后面的普通题上
+                    hit = re.search(r"回答(?:下列|下面|以下)?\s*(\d+)\s*题",
+                                    "\n".join(mat["lines"]))
+                    cur_left = int(hit.group(1)) if hit else 1
+                    mat = None
                 cur = [m.group(4) or ""]
+                if cur_mid is not None:
+                    cur_left -= 1
+                    if cur_left < 0:
+                        cur_mid = None
                 continue
         if mat is not None:
             mat["lines"].append(raw)
