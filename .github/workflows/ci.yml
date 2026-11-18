@@ -1,0 +1,32 @@
+name: checks
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  syntax:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # 只编译不执行：build_apk.py 依赖 Pillow 与 Android SDK，
+      # CI 里不装这些，跑不了完整构建，语法和导入结构能查出来就够了
+      - name: Python 语法
+        run: python -m py_compile server.py build_db.py build_apk.py tools/smoke.py
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: 前端语法
+        run: node --check web/app.js
+
+      - name: 示例题库能导入
+        run: |
+          python build_db.py sample --out /tmp/sample.db
+          python -c "import sqlite3,sys; n=sqlite3.connect('/tmp/sample.db').execute('SELECT COUNT(*) FROM questions').fetchone()[0]; print('示例导入题数：', n); sys.exit(0 if n > 0 else 1)"

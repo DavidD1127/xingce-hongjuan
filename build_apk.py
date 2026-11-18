@@ -364,9 +364,9 @@ def main():
     t0 = time.time()
     if "--bump" in args:
         code = read_version_code() + 1
-        with open(VER_FILE, "w", encoding="utf-8") as fh:
+        with open(VER_FILE, "w", encoding="utf-8", newline="\n") as fh:
             fh.write("%d\n" % code)
-        print("[版本] 升到 1.%d" % code)
+        print("[版本] 升到 1.0.%d" % code)
     if "--skip-assets" not in args:
         print("[1/5] 准备网页与题库")
         prepare_www()

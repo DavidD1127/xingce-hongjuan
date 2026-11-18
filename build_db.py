@@ -322,6 +322,14 @@ def main():
     print("用时 %.1fs，库大小 %.1f MB" % (time.time() - t0, os.path.getsize(DB) / 1048576))
     con.close()
 
+    if n == 0:
+        # 空库比报错更坑：界面能打开、一道题都没有，看不出是路径写错了
+        raise SystemExit(
+            "\n[失败] 一道题也没导入，题库路径可能不对：%s\n"
+            "        该目录下应有 01-政治理论 … 06-资料分析 六个子目录，里面是 Markdown。\n"
+            "        只想先看界面效果，用自带的示例：\n"
+            "          python build_db.py sample --out sample.db" % VAULT)
+
 
 if __name__ == "__main__":
     main()
