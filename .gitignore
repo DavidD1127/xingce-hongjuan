@@ -43,3 +43,6 @@ Thumbs.db
 
 # 给自己的开发笔记，不在公开仓库里
 HANDOFF.md
+
+# 临时压缩包
+*.zip
