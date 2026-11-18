@@ -138,42 +138,72 @@ function drawQuestion() {
   const q = S.list[S.i];
   const pct = Math.round(S.i / S.list.length * 100);
   const multi = (q.answer || '').length > 1;
+
   app.innerHTML =
     '<div class="bar-top" style="width:' + pct + '%"></div>' +
     '<div class="sheet">' +
-    '<div class="qhead"><span class="qno">第 ' + (S.i + 1) + ' 题 / 共 ' + S.list.length + ' 题</span>' +
-    '<span class="tags"><i>' + esc(q.module) + '</i><i>' + esc(q.category) + '</i>' +
-    (q.year ? '<i>' + esc(q.year) + '</i>' : '') +
-    (q.region ? '<i>' + esc(q.region) + '</i>' : '') +
-    (q.n_papers > 1 ? '<i>收录 ' + q.n_papers + ' 卷</i>' : '') +
-    (multi ? '<i>多选</i>' : '') + '</span></div>' +
-    (q.material ? '<div class="mat"><div class="mh"><span>给定材料</span>' +
-      '<button class="mat-btn">展开</button></div>' + rich(q.material) + '</div>' : '') +
+    qHead(q, S.i + 1, S.list.length, multi) +
+    (q.material ? matBlock(q.material) : '') +
     '<div class="stem">' + rich(q.stem) + '</div>' +
-    '<div class="opts">' + S.list[S.i].options.map(optHtml).join('') + '</div>' +
+    '<div class="opts">' + q.options.map(optHtml).join('') + '</div>' +
     '<div id="after"></div>' +
-    '<div class="tools">' +
+    qTools(q) +
+    '</div>';
+
+  bindOptions(multi);
+  paintAction();
+}
+
+function qHead(q, idx, total, multi) {
+  const tags = ['<i>' + esc(q.module) + '</i>', '<i>' + esc(q.category) + '</i>'];
+  if (q.year) tags.push('<i>' + esc(q.year) + '</i>');
+  if (q.region) tags.push('<i>' + esc(q.region) + '</i>');
+  if (q.n_papers > 1) tags.push('<i>收录 ' + q.n_papers + ' 卷</i>');
+  if (multi) tags.push('<i>多选</i>');
+  return '<div class="qhead"><span class="qno">第 ' + idx + ' 题 / 共 ' + total + ' 题</span>' +
+    '<span class="tags">' + tags.join('') + '</span></div>';
+}
+
+// 长材料默认折叠到 38vh，右上角那个按钮负责放开
+function matBlock(html) {
+  return '<div class="mat"><div class="mh"><span>给定材料</span>' +
+    '<button class="mat-btn">展开</button></div>' + rich(html) + '</div>';
+}
+
+function qTools(q) {
+  return '<div class="tools">' +
     '<button id="fav">' + (q.fav ? '已收藏' : '收藏') + '</button>' +
     '<button id="note">笔记</button>' +
     '<button id="skip">跳过</button>' +
     '<button id="reset">换范围</button>' +
     '</div>' +
-    '<p class="sub keys">A–D 选项 · Enter 对答案 · 1–4 自评</p>' +
-    '</div>';
+    '<p class="sub keys">A–D 选项 · Enter 对答案 · 1–4 自评</p>';
+}
 
+function bindOptions(multi) {
   app.querySelectorAll('.opt').forEach(b => b.onclick = () => {
     if (S.reveal) return;
     const k = b.dataset.k;
-    if (multi) { S.picked.has(k) ? S.picked.delete(k) : S.picked.add(k); }
-    else { S.picked.clear(); S.picked.add(k); }
+    if (multi) {
+      if (S.picked.has(k)) S.picked.delete(k); else S.picked.add(k);
+    } else {
+      S.picked.clear();
+      S.picked.add(k);
+    }
     app.querySelectorAll('.opt').forEach(x => x.classList.toggle('sel', S.picked.has(x.dataset.k)));
     paintAction();
   });
   document.getElementById('fav').onclick = toggleFav;
   document.getElementById('note').onclick = editNote;
-  document.getElementById('skip').onclick = () => { S.i++; S.picked.clear(); S.reveal = false; S.i >= S.list.length ? drawDone() : drawQuestion(); };
+  document.getElementById('skip').onclick = skipQuestion;
   document.getElementById('reset').onclick = resetSession;
-  paintAction();
+}
+
+function skipQuestion() {
+  S.i++;
+  S.picked.clear();
+  S.reveal = false;
+  if (S.i >= S.list.length) drawDone(); else drawQuestion();
 }
 
 // 图形题的选项常常只有一张图或干脆只有字母，只在有文字时补一列
@@ -434,8 +464,7 @@ async function viewOne(qid) {
       '<div class="qhead"><span class="qno">' + esc(q.module) + ' · ' + esc(q.category) + '</span>' +
       '<span class="tags">' + (q.year ? '<i>' + esc(q.year) + '</i>' : '') +
       (q.region ? '<i>' + esc(q.region) + '</i>' : '') + '<i>qid ' + esc(q.qid) + '</i></span></div>' +
-      (q.material ? '<div class="mat"><div class="mh"><span>给定材料</span>' +
-      '<button class="mat-btn">展开</button></div>' + rich(q.material) + '</div>' : '') +
+      (q.material ? matBlock(q.material) : '') +
       '<div class="stem">' + rich(q.stem) + '</div>' +
       '<div class="opts">' + opts + '</div>' +
       '<div class="ana"><div class="ah">答案 ' + esc(q.answer) + '</div>' + (rich(q.analysis) || '<p class="sub">原库无解析</p>') + '</div>' +
