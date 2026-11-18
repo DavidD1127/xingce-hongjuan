@@ -14,10 +14,13 @@
 - 打包：`build_apk.py`（aapt2 → javac → d8 → zip → zipalign → apksigner），无 Gradle
 - 环境：JDK 17、Python 3.12、Android SDK 34（`D:\AI\_android_sdk`）、Pillow、MuMu 模拟器
 
-## 当前状态（2026-11-17）
+## 当前状态（2026-11-18）
 
 - 桌面版可用，`启动.bat` 双击即跑（可见窗口，关窗即停）
-- APK 156MB，模拟器验证通过；真机装过旧版，最新包修好了公式图
+- APK 156MB；题库更新走 `build.txt` 版本比对 + 学习记录迁移
+- 选项公式图已修（路径改写与题库同步两个 bug）
+- 新增：进度导出/导入、长材料展开、缺图占位、`tools/smoke.py` 真机冒烟
+- 待真机验证本轮改动（设备当天未连接）
 - git 已初始化，提交到「搬到新工作区，二维码指向 zip 下载」
 
 ## 硬约束 / 偏好

@@ -26,3 +26,17 @@ android/hongjuan.keystore
 
 # DSH 会话元数据
 .dsh-ops/
+
+# 本机签名密码（build_apk.py 优先读环境变量 HJ_KS_PASS，其次读这里）
+android/.kspass
+
+# 个人工作记录：含本机路径与私人偏好，不随代码公开
+memory/
+
+# 编辑器与系统
+.idea/
+.vscode/
+*.iml
+*.log
+Thumbs.db
+.DS_Store

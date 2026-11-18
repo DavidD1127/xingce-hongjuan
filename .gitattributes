@@ -1,0 +1,16 @@
+# 默认按 LF 存，Windows 下要保证 CRLF 的单独指定
+* text=auto eol=lf
+
+# cmd 解析不了 LF：这两个必须是 CRLF，否则报一堆 is not recognized
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# 图片与二进制不做行尾转换
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.webp binary
+*.gif binary
+*.apk binary
+*.keystore binary
+*.db binary
