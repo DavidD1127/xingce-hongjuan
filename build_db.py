@@ -148,6 +148,11 @@ def parse_file(path, module):
     cur_left = 0        # 这份材料还管几题
     mat = None          # 正在收集的材料体
 
+    # 一份材料实际配 4-5 道题，偶尔到 8。题库里有些卷子只写了「材料 2」，
+    # 后面几十道普通题也算在它名下——不设上限的话，一道文化多样性题会顶着
+    # 「小鼠换血」的材料。宁可能少挂，也别一路挂到卷尾。
+    MAX_PER_MATERIAL = 8
+
     def flush_mat():
         if mat is not None and cur_mid:
             materials[mat["mid"]] = {"title": mat["title"], "body": fix_html("\n".join(mat["lines"]))}
@@ -170,21 +175,17 @@ def parse_file(path, module):
                 cur_mid = "%s|%s|%s|%s" % (module, meta.get("试卷", ""),
                                            os.path.basename(path), m.group(3))
                 mat = {"mid": cur_mid, "title": "材料 %s" % m.group(3), "lines": []}
+                cur_left = 0
                 continue
             if m.group(2):                       # 题头（qid 就写在这一行里）
                 flush_q()
                 if mat is not None:
-                    flush_mat()
-                    # 材料正文里通常写着「回答下列5题」，照这个数限定它管几道题；
-                    # 没写就只当管紧跟着的一道，总之别让它一路挂到后面的普通题上
-                    hit = re.search(r"回答(?:下列|下面|以下)?\s*(\d+)\s*题",
-                                    "\n".join(mat["lines"]))
-                    cur_left = int(hit.group(1)) if hit else 1
-                    mat = None
+                    flush_mat(); mat = None
+                    cur_left = MAX_PER_MATERIAL
                 cur = [m.group(4) or ""]
                 if cur_mid is not None:
                     cur_left -= 1
-                    if cur_left < 0:
+                    if cur_left <= 0:
                         cur_mid = None
                 continue
         if mat is not None:
