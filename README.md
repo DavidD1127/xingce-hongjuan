@@ -5,6 +5,11 @@
 - 桌面版：Python 3.8+，标准库，无第三方依赖。Windows 有 `启动.bat`，macOS / Linux 直接 `python server.py`
 - 手机版：额外要 JDK 17、Android SDK 34、Pillow，出的是离线 APK（题库和配图全在包里）
 
+<p>
+  <img src="docs/首页.png" width="430" alt="今日页">
+  <img src="docs/手机答题.png" width="210" alt="手机答题">
+</p>
+
 题源：`D:\AI\xingcezhenti`（ERRRC/xingcezhenti 的原始题库副本，515 套卷、58,890 行题目）。
 按 qid 去重后 **27,473 道**，六科：政治理论、常识判断、言语理解、数量关系、判断推理、资料分析。
 
