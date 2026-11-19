@@ -22,6 +22,7 @@ import sys
 import time
 import zipfile
 from concurrent.futures import ThreadPoolExecutor
+from contextlib import closing
 
 from PIL import Image, ImageFilter
 
@@ -62,7 +63,8 @@ def ks_pass():
         return p.strip()
     f = os.path.join(ANDROID, ".kspass")
     if os.path.isfile(f):
-        return open(f, encoding="utf-8").read().strip()
+        with open(f, encoding="utf-8") as fh:
+            return fh.read().strip()
     return ""
 
 
@@ -210,9 +212,9 @@ def rewrite_db(mapping):
     shutil.rmtree(dst, ignore_errors=True)
     os.makedirs(dst, exist_ok=True)
     target = os.path.join(dst, "hongjuan.db")
-    shutil.copy2(DB_SRC, target)
-    if not mapping:
-        return target
+    # backup API 会包含 WAL 中已提交的数据，不能直接拷贝正在使用的 SQLite 文件。
+    with closing(sqlite3.connect(DB_SRC)) as source, closing(sqlite3.connect(target)) as dest:
+        source.backup(dest)
     con = sqlite3.connect(target)
     # 题干和解析里是 src="/img/…"，选项存在 JSON 里，引号被转义成了 src=\"/img/…
     # 两种形式都要认，否则选项里的公式图会指向不存在的路径。
@@ -315,11 +317,12 @@ def assemble(base_apk, dex):
     # 资源分两批：数据库压一压，图片原样存（省打包时间）
     total = 0
     with zipfile.ZipFile(unsigned, "a", zipfile.ZIP_STORED) as z:
+        existing = set(z.namelist())
         for root, _, files in os.walk(ASSETS):
             for f in files:
                 src = os.path.join(root, f)
                 arc = "assets/" + os.path.relpath(src, ASSETS).replace(os.sep, "/")
-                if arc in z.namelist():
+                if arc in existing:
                     continue
                 if f.endswith(".db") or f.endswith(".js") or f.endswith(".css") or f.endswith(".html"):
                     z.write(src, arc, zipfile.ZIP_DEFLATED)
@@ -372,6 +375,8 @@ def warn_stale_assets():
 def main():
     args = sys.argv[1:]
     t0 = time.time()
+    if not os.path.isfile(DB_SRC):
+        raise SystemExit("找不到 hongjuan.db，请先运行 python build_db.py <题库目录>")
     if "--bump" in args:
         code = read_version_code() + 1
         with open(VER_FILE, "w", encoding="utf-8", newline="\n") as fh:
@@ -382,6 +387,8 @@ def main():
         prepare_www()
         db_copy = prepare_images(DB_SRC)
         rewrite_db(db_copy)
+        if "--assets" in args:
+            return
     else:
         print("[1/5] 复用已有 assets")
         warn_stale_assets()

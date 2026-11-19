@@ -40,6 +40,8 @@ memory/
 *.log
 Thumbs.db
 .DS_Store
+.playwright-cli/
+output/
 
 # 给自己的开发笔记，不在公开仓库里
 HANDOFF.md

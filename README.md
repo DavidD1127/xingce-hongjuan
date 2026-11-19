@@ -30,7 +30,7 @@
 获取并导入：
 
 ```
-git clone https://github.com/ERRRC/xingcezhenti.git
+git clone https://github.com/ERRRC/xingcezhenti.git ../xingcezhenti
 python build_db.py ../xingcezhenti                     # 指定题库目录
 set HJ_IMG=../xingcezhenti/90-图片                     # 构建 APK 时指向图片目录
 ```
@@ -113,7 +113,9 @@ tools/smoke.py 真机冒烟测试：安装 → 启动 → 抽题 → 截图 → 
 hongjuan.db    题库与学习进度（约 85MB，由 build_db.py 生成）
 ```
 
-`hongjuan.db` 包含全部数据。备份该文件即可；删除后重新运行 `build_db.py` 可重建题库，学习进度将清空。
+`hongjuan.db` 包含全部数据。备份文件前请先停止桌面服务（运行时可能有尚未合并的 WAL 文件），也可在页面导出学习进度。
+重新运行 `build_db.py` 会在事务中更新题库并保留学习记录；解析失败或未读到题目时不会清空原库。
+不要删除数据库后再重建，否则学习进度会丢失。
 
 ## 环境变量
 
@@ -144,12 +146,26 @@ python build_apk.py
 **题库随版本更新**：构建时写入 `assets/db/build.txt`，应用启动时与数据库内的版本号比对，
 不一致则备份旧库、复制新库，并通过 ATTACH 迁移 `srs` / `reviews` / `favorites` / `notes` 四张表。
 覆盖安装不会丢失做题记录。
+迁移失败时恢复旧库，成功后保留一份 `.bak` 备份；下次成功更新前会轮换这份备份。
 
 学习记录支持手动导出：今日页底部「进度保险」，导出经由系统分享面板完成，导入在同一位置粘贴 JSON。
+导入会覆盖当前四张学习记录表，请先导出备份。只接受本应用导出的 version=1 JSON。
 
 界面固定竖屏，导航位于屏幕底部。
 
 构建依赖 JDK 17、Android SDK（build-tools 34、platform android-34）、Pillow，任一缺失将直接报错退出。
+使用 JDK 17 构建；JDK 21 与此版 D8 存在兼容问题。正式包关闭 WebView 调试，仅调试包可开启。
+
+## 自动检查
+
+```text
+python -m pip install Pillow
+python -m unittest discover -s tests -v
+node --check web/app.js
+```
+
+测试使用临时示例库，不改动个人题库。GitHub Actions 同步运行这些检查。
+桌面服务默认仅监听 `127.0.0.1`，不向局域网开放无认证的进度接口。
 
 与桌面版的关系：两端数据不互通。二者共用 `web/` 下的同一套页面，
 APK 端将 `fetch('/api/…')` 替换为 `HJNative.call(…)`，直接访问本地数据库。

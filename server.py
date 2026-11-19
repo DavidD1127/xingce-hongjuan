@@ -78,6 +78,14 @@ def export_progress():
 
 
 def import_progress(body):
+    if body.get("app") != "hongjuan" or body.get("version") != 1:
+        return {"error": "请使用行测红卷导出的 version=1 进度文件"}
+    for name in ("srs", "reviews", "favorites", "notes"):
+        rows = body.get(name, [])
+        if not isinstance(rows, list) or any(
+                not isinstance(r, dict) or not isinstance(r.get("qid"), str)
+                or not re.fullmatch(r"\d+", r["qid"]) for r in rows):
+            return {"error": "进度记录格式错误：" + name}
     srs = body.get("srs") or []
     rev = body.get("reviews") or []
     fav = body.get("favorites") or []
@@ -279,7 +287,13 @@ class Handler(BaseHTTPRequestHandler):
         if path.startswith("/img/"):
             rel = path[5:]
             fp = os.path.normpath(os.path.join(IMG, rel))
-            if not fp.startswith(IMG):
+            root = os.path.realpath(IMG)
+            fp = os.path.realpath(fp)
+            try:
+                contained = os.path.commonpath([root, fp]) == root
+            except ValueError:
+                contained = False
+            if not contained:
                 return self._json({"error": "forbidden"}, 403)
             if not os.path.isfile(fp):
                 return self._json({"error": "missing"}, 404)
@@ -299,11 +313,17 @@ class Handler(BaseHTTPRequestHandler):
     def do_POST(self):
         u = urllib.parse.urlparse(self.path)
         path = urllib.parse.unquote(u.path)
-        n = int(self.headers.get("Content-Length") or 0)
+        if self.headers.get("Origin") and self.headers["Origin"] != "http://" + self.headers.get("Host", ""):
+            return self._json({"error": "不允许跨站写入"}, 403)
         try:
+            n = int(self.headers.get("Content-Length") or 0)
+            if n < 0 or n > 32 * 1024 * 1024:
+                return self._json({"error": "请求体过大"}, 413)
             body = json.loads(self.rfile.read(n).decode() or "{}")
-        except Exception:
-            body = {}
+            if not isinstance(body, dict):
+                raise ValueError("JSON 必须是对象")
+        except (ValueError, UnicodeError):
+            return self._json({"error": "无效的 JSON 请求"}, 400)
         if not path.startswith("/api/"):
             return self._json({"error": "no route"}, 404)
         try:
@@ -316,6 +336,8 @@ class Handler(BaseHTTPRequestHandler):
     # ---- 接口 ----
 
     def api(self, name, g, body=None):
+        if name in ("grade", "fav", "note", "import") and body is None:
+            return self._json({"error": "此接口需要 POST"}, 405)
         if name == "overview":
             return self._json(self.overview())
         if name == "pick":
@@ -350,7 +372,8 @@ class Handler(BaseHTTPRequestHandler):
         if name == "export":
             return self._json(export_progress())
         if name == "import":
-            return self._json(import_progress(body or {}))
+            result = import_progress(body or {})
+            return self._json(result, 400 if "error" in result else 200)
         return self._json({"error": "no such api"}, 404)
 
     def overview(self):
@@ -406,7 +429,7 @@ class Handler(BaseHTTPRequestHandler):
         total = one("SELECT COUNT(*) n FROM questions q WHERE " + cond, args)["n"]
         rows = many("""SELECT q.qid,q.module,q.category,q.year,q.region,q.paper,
                               substr(replace(q.stem,'<p>',''),1,90) brief,
-                              s.status,s.due,s.wrong_cnt,
+                              s.status,s.due,s.interval,s.wrong_cnt,
                               (SELECT 1 FROM favorites f WHERE f.qid=q.qid) fav
                        FROM questions q LEFT JOIN srs s ON s.qid=q.qid
                        WHERE """ + cond + " ORDER BY q.year DESC, q.qid LIMIT ? OFFSET ?",                    args + [size, (page - 1) * size])
@@ -496,7 +519,7 @@ def main():
     if not os.path.isdir(IMG):
         print("[提醒] 图片目录不存在：", IMG, "（题目图会裂，文字正常）")
     print("行测红卷 → http://127.0.0.1:%d" % PORT)
-    ThreadingHTTPServer(("0.0.0.0", PORT), Handler).serve_forever()
+    ThreadingHTTPServer(("127.0.0.1", PORT), Handler).serve_forever()
 
 
 if __name__ == "__main__":

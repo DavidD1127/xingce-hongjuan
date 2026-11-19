@@ -20,8 +20,22 @@ document.addEventListener('error', e => {
 window.MISSING_IMG = MISSING_IMG;
 const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
-// 题干里的 **加粗** 转成标签，其余 HTML 原样保留
-const rich = s => String(s || '').replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>');
+// 题库是外部输入；保留排版与本地图，去掉脚本、事件属性和外部资源。
+function rich(s) {
+  const doc = new DOMParser().parseFromString(
+    String(s || '').replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>'), 'text/html');
+  const tags = new Set(['P', 'BR', 'B', 'STRONG', 'I', 'EM', 'U', 'S', 'SUB', 'SUP',
+    'SPAN', 'DIV', 'IMG', 'TABLE', 'THEAD', 'TBODY', 'TR', 'TH', 'TD', 'UL', 'OL', 'LI', 'BLOCKQUOTE', 'HR']);
+  doc.body.querySelectorAll('*').forEach(el => {
+    if (!tags.has(el.tagName)) { el.remove(); return; }
+    for (const attr of [...el.attributes]) {
+      const allowed = ['alt', 'title', 'width', 'height', 'colspan', 'rowspan'].includes(attr.name)
+        || (el.tagName === 'IMG' && attr.name === 'src' && /^\/img\/[^?#]*$/.test(attr.value));
+      if (!allowed) el.removeAttribute(attr.name);
+    }
+  });
+  return doc.body.innerHTML;
+}
 
 // 装进 APK 时没有 HTTP 服务，改走同一套接口的本地桥；浏览器里还是走 /api/
 function bridge() {
@@ -33,7 +47,7 @@ async function api(path, body) {
   if (b) {
     const raw = b.call(path, body === undefined ? '' : JSON.stringify(body));
     const data = JSON.parse(raw || '{}');
-    if (data && data.__error) throw new Error(data.__error);
+    if (data && (data.__error || data.error)) throw new Error(data.__error || data.error);
     return data;
   }
   const opt = body === undefined ? undefined : {
@@ -43,7 +57,7 @@ async function api(path, body) {
   };
   const r = await fetch('/api/' + path, opt);
   const data = await r.json().catch(() => ({}));
-  if (!r.ok) throw new Error(data.error || ('HTTP ' + r.status));
+  if (!r.ok || data.error) throw new Error(data.error || ('HTTP ' + r.status));
   return data;
 }
 
@@ -253,11 +267,14 @@ function check() {
 }
 
 async function grade(g) {
+  if (S.saving || !S.reveal || S.i >= S.list.length) return;
+  S.saving = true;
   const q = S.list[S.i];
   try {
     const d = await api('grade', { qid: q.qid, picked: [...S.picked], grade: g });
     d.right ? S.right++ : S.wrong++;
   } catch (e) { fail(e); return; }
+  finally { S.saving = false; }
   S.i++; S.picked.clear(); S.reveal = false;
   S.i >= S.list.length ? drawDone() : drawQuestion();
 }
@@ -291,13 +308,13 @@ async function editNote() {
   const box = document.getElementById('after');
   const old = q.note || '';
   box.insertAdjacentHTML('beforeend',
-    '<div class="grade"><p>写点自己的话，下次翻到这题会看到。</p>' +
+    '<div class="grade note-editor"><p>写点自己的话，下次翻到这题会看到。</p>' +
     '<textarea id="nt" rows="3" style="width:100%;font:inherit;padding:8px;border:1px solid var(--line-2);background:#fff">' +
     esc(old) + '</textarea><div class="acts"><button class="btn sm" id="nsave">存下</button></div></div>');
   document.getElementById('nsave').onclick = async () => {
     q.note = document.getElementById('nt').value;
     await api('note', { qid: q.qid, text: q.note });
-    box.querySelector('.grade').remove();
+    box.querySelector('.note-editor').remove();
   };
 }
 
@@ -373,7 +390,7 @@ async function viewHome() {
       '<div class="sheet"><h2>六科进度</h2><p class="sub">学过的算进去，学一半的也算</p>' +
       '<div class="mod-list">' + rows + '</div></div>' +
       '<div class="sheet"><h2>进度保险</h2>' +
-      '<p class="sub">换手机或重装前导一份，回来再灌回去。只带记录，不带题库。</p>' +
+      '<p class="sub">换手机或重装前导一份，回来再灌回去。导入会覆盖现有全部学习记录，请先导出备份。</p>' +
       '<div class="acts">' +
       '<button class="btn ghost" id="exp">导出进度</button>' +
       '<button class="btn ghost" id="imp">导入进度</button>' +
@@ -490,7 +507,7 @@ async function viewStats() {
     const days = [];
     for (let i = 29; i >= 0; i--) {
       const dt = new Date(Date.now() - i * 86400000);
-      const k = dt.toISOString().slice(0, 10);
+      const k = dt.getFullYear() + '-' + String(dt.getMonth() + 1).padStart(2, '0') + '-' + String(dt.getDate()).padStart(2, '0');
       days.push({ k, n: (byDay[k] || {}).n || 0 });
     }
     const max = Math.max(1, ...days.map(x => x.n));
