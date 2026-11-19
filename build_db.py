@@ -185,7 +185,7 @@ def parse_file(path, module):
                 cur = [m.group(4) or ""]
                 if cur_mid is not None:
                     cur_left -= 1
-                    if cur_left <= 0:
+                    if cur_left < 0:
                         cur_mid = None
                 continue
         if mat is not None:
@@ -275,11 +275,6 @@ def main():
         print("[错误] 题库目录不存在：", VAULT)
         sys.exit(1)
     t0 = time.time()
-    if os.path.exists(DB):
-        os.remove(DB)
-    con = sqlite3.connect(DB)
-    con.executescript(SCHEMA)
-
     total_blocks = 0
     files = 0
     mats = {}
@@ -309,6 +304,16 @@ def main():
                     rows[q["qid"]] = q
         print("  已读 %-16s 累计 %d 题" % (module, len(rows)))
 
+    if not rows:
+        raise SystemExit("[失败] 一道题也没导入，原数据库未修改；请检查题库目录，或使用 sample。")
+
+    # 先完整解析，再在同一事务内换题；保留按稳定 qid 关联的学习记录。
+    con = sqlite3.connect(DB, timeout=10)
+    con.executescript(SCHEMA.replace("CREATE TABLE ", "CREATE TABLE IF NOT EXISTS ")
+                     .replace("CREATE INDEX ", "CREATE INDEX IF NOT EXISTS "))
+    con.execute("BEGIN IMMEDIATE")
+    con.execute("DELETE FROM questions")
+    con.execute("DELETE FROM materials")
     con.executemany(
         "INSERT INTO materials(mid,title,body) VALUES(?,?,?)",
         [(k, v["title"], v["body"]) for k, v in mats.items()])
@@ -336,15 +341,6 @@ def main():
         print("  %-10s %6d" % (mod, c))
     print("用时 %.1fs，库大小 %.1f MB" % (time.time() - t0, os.path.getsize(DB) / 1048576))
     con.close()
-
-    if n == 0:
-        # 空库比报错更坑：界面能打开、一道题都没有，看不出是路径写错了
-        raise SystemExit(
-            "\n[失败] 一道题也没导入，题库路径可能不对：%s\n"
-            "        该目录下应有 01-政治理论 … 06-资料分析 六个子目录，里面是 Markdown。\n"
-            "        只想先看界面效果，用自带的示例：\n"
-            "          python build_db.py sample --out sample.db" % VAULT)
-
 
 if __name__ == "__main__":
     main()

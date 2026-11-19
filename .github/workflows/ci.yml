@@ -26,6 +26,12 @@ jobs:
       - name: 前端语法
         run: node --check web/app.js
 
+      - name: 安装资源测试依赖
+        run: python -m pip install Pillow
+
+      - name: 数据安全与 HTTP 回归测试
+        run: python -m unittest discover -s tests -v
+
       - name: 示例题库能导入
         run: |
           python build_db.py sample --out /tmp/sample.db

@@ -39,22 +39,25 @@ public class Db {
     void ensure() {
         File f = ctx.getDatabasePath("hongjuan.db");
         String want = assetText("db/build.txt");
-        if (f.exists() && f.length() > 1000000L) {
+        if (f.exists()) {
             if (want.length() == 0) return;                 // 旧包没有版本号，保持原样
             if (want.equals(settingRead(f, "db_build"))) return;
             // 题库版本变了：先把旧库留一份，拷新库，再把做题记录搬过去
             File bak = new File(f.getPath() + ".bak");
             if (bak.exists() && !bak.delete()) return;      // 备份失败就不动，宁可先用旧库
             if (!f.renameTo(bak)) {
-                bak = null;
-                if (!f.delete()) return;
+                return;
             }
-            copyAssetDb(f);
-            if (bak != null) {
+            try {
+                copyAssetDb(f);
                 migrate(bak, f);
-                bak.delete();
+                settingWrite(f, "db_build", want);
+            } catch (RuntimeException e) {
+                // 新库或迁移失败时回到旧库，备份恢复失败则保留备份并明确报错。
+                if (f.exists() && !f.delete()) throw e;
+                if (!bak.renameTo(f)) throw e;
+                android.util.Log.e("HJ", "题库更新失败，已恢复原库", e);
             }
-            settingWrite(f, "db_build", want);
             return;
         }
         copyAssetDb(f);
@@ -107,14 +110,20 @@ public class Db {
         try {
             d = SQLiteDatabase.openDatabase(newDb.getPath(), null, SQLiteDatabase.OPEN_READWRITE);
             d.execSQL("ATTACH DATABASE ? AS old", new Object[]{oldDb.getPath()});
+            d.beginTransaction();
+            try {
             d.execSQL("INSERT OR REPLACE INTO srs(qid,status,ease,interval,reps,lapses,due,last,right_cnt,wrong_cnt)" +
                     " SELECT qid,status,ease,interval,reps,lapses,due,last,right_cnt,wrong_cnt FROM old.srs");
             d.execSQL("INSERT OR IGNORE INTO favorites(qid,added) SELECT qid,added FROM old.favorites");
             d.execSQL("INSERT OR REPLACE INTO notes(qid,text,updated) SELECT qid,text,updated FROM old.notes");
             d.execSQL("INSERT INTO reviews(qid,grade,right,ts) SELECT qid,grade,right,ts FROM old.reviews");
+                d.setTransactionSuccessful();
+            } finally {
+                d.endTransaction();
+            }
             d.execSQL("DETACH DATABASE old");
-        } catch (Exception ignored) {
-            // 迁移失败不影响新题库可用，大不了记录从零开始
+        } catch (Exception e) {
+            throw new RuntimeException("学习记录迁移失败", e);
         } finally {
             if (d != null) d.close();
         }
@@ -470,7 +479,7 @@ public class Db {
         a2.add(String.valueOf((page - 1) * size));
         List<JSONObject> list = rows(
                 "SELECT q.qid,q.module,q.category,q.year,q.region,q.paper," +
-                        " substr(replace(q.stem,'<p>',''),1,90) brief, s.status,s.due,s.wrong_cnt," +
+                        " substr(replace(q.stem,'<p>',''),1,90) brief, s.status,s.due,s.interval,s.wrong_cnt," +
                         " (SELECT 1 FROM favorites f WHERE f.qid=q.qid) fav" +
                         " FROM questions q LEFT JOIN srs s ON s.qid=q.qid WHERE " + cond +
                         " ORDER BY q.year DESC, q.qid LIMIT ? OFFSET ?",
@@ -681,6 +690,24 @@ public class Db {
 
     /** 覆盖导入。四张表先清空再灌，避免和现有记录混成两套。 */
     private JSONObject importData(JSONObject body) {
+        if (!"hongjuan".equals(body.optString("app")) || body.optInt("version", 0) != 1) {
+            return err("请使用行测红卷导出的 version=1 进度文件");
+        }
+        int records = 0;
+        for (String name : new String[]{"srs", "reviews", "favorites", "notes"}) {
+            if (!body.has(name)) continue;
+            JSONArray list = body.optJSONArray(name);
+            if (list == null) return err("进度记录格式错误：" + name);
+            records += list.length();
+            for (int i = 0; i < list.length(); i++) {
+                JSONObject item = list.optJSONObject(i);
+                if (item == null || !(item.opt("qid") instanceof String)
+                        || !item.optString("qid").matches("[0-9]+")) {
+                    return err("进度记录格式错误：" + name);
+                }
+            }
+        }
+        if (records == 0) return err("这份 JSON 里没有可导入的记录");
         JSONArray srs = body.optJSONArray("srs");
         JSONArray rev = body.optJSONArray("reviews");
         JSONArray fav = body.optJSONArray("favorites");
